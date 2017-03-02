@@ -16,7 +16,7 @@ class ChatViewController: UIViewController, UITextFieldDelegate {
     
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var textField: UITextField!
-    @IBOutlet weak var typingIndicator: UILabel!
+    @IBOutlet weak var typingIndicatorLabel: UILabel!
     
     lazy var messageRef: FIRDatabaseReference = FIRDatabase.database().reference().child("messages0217")
     var messageRefHandle: FIRDatabaseHandle?
@@ -24,8 +24,11 @@ class ChatViewController: UIViewController, UITextFieldDelegate {
     var messages = [Message]()
     
     // track user typing
-    private lazy var userIsTypingRef: FIRDatabaseReference = FIRDatabase.database().reference().child("typingIndicator").child(self.senderId)
-    private var localTyping = false
+    lazy var userIsTypingRef: FIRDatabaseReference = FIRDatabase.database().reference().child("typingIndicator").child(self.senderId)
+    lazy var usersTypingQuery: FIRDatabaseQuery =
+        FIRDatabase.database().reference().child("typingIndicator").queryOrderedByValue().queryEqual(toValue: true)
+    
+    var localTyping = false
     var isTyping: Bool {
         get {
             return localTyping
@@ -35,8 +38,7 @@ class ChatViewController: UIViewController, UITextFieldDelegate {
             userIsTypingRef.setValue(newValue)
         }
     }
-    private lazy var usersTypingQuery: FIRDatabaseQuery =
-        FIRDatabase.database().reference().child("typingIndicator").queryOrderedByValue().queryEqual(toValue: true)
+    
     
     
     override func viewDidLoad() {
@@ -60,6 +62,7 @@ class ChatViewController: UIViewController, UITextFieldDelegate {
         if let refHandle = messageRefHandle {
             messageRef.removeObserver(withHandle: refHandle)
         }
+        usersTypingQuery.removeAllObservers()
     }
     
     // MARK: Firebase
@@ -83,9 +86,6 @@ class ChatViewController: UIViewController, UITextFieldDelegate {
     }
     
     private func observeTyping() {
-        let typingIndicatorRef = FIRDatabase.database().reference().child("typingIndicator")
-        userIsTypingRef = typingIndicatorRef.child(self.senderId)
-        
         usersTypingQuery.observe(.value) { (data: FIRDataSnapshot) in
             // You're the only one typing, don't show the indicator
             //if data.childrenCount == 1 && self.isTyping {
@@ -93,7 +93,7 @@ class ChatViewController: UIViewController, UITextFieldDelegate {
             //}
             
             // Are there others typing?
-            self.typingIndicator.isHidden = data.childrenCount < 1
+            self.typingIndicatorLabel.isHidden = data.childrenCount < 1
         }
         
         userIsTypingRef.onDisconnectRemoveValue()

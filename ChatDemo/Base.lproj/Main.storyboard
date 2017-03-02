@@ -207,7 +207,7 @@
                     <connections>
                         <outlet property="tableView" destination="8Xp-kW-J5e" id="W0i-J5-pPU"/>
                         <outlet property="textField" destination="9NM-xQ-SAd" id="OAu-Uo-6yK"/>
-                        <outlet property="typingIndicator" destination="6Ks-tx-1Sm" id="8xw-Vk-wXA"/>
+                        <outlet property="typingIndicatorLabel" destination="6Ks-tx-1Sm" id="CEF-8y-eT6"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="0la-1j-8eU" userLabel="First Responder" sceneMemberID="firstResponder"/>
