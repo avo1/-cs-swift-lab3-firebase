@@ -16,7 +16,7 @@ class MessageCell: UITableViewCell {
     
     var message: Message! {
         didSet {
-            senderLabel.text = message.sender
+            senderLabel.text = message.senderEmail
             msgLabel.text = message.content
             timeLabel.text = message.timeStamp
         }

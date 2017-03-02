@@ -10,7 +10,8 @@ import UIKit
 import NSDate_TimeAgo
 
 class Message: NSObject {
-    var sender: String!
+    var senderId: String!
+    var senderEmail: String!
     var content = ""
     var createdAt: Date?
     var timeStamp: String {
@@ -18,7 +19,8 @@ class Message: NSObject {
     }
     
     init(messageData: [String: Any]) {
-        self.sender = messageData["sender"] as! String
+        self.senderId = messageData["senderId"] as! String
+        self.senderEmail = messageData["email"] as! String
         self.content = messageData["content"] as! String
         self.createdAt = NSDate(timeIntervalSince1970: (messageData["createdAt"] as! Double)/1000) as Date
     }

@@ -11,26 +11,41 @@ import Firebase
 
 class LoginViewController: UIViewController {
 
-    @IBOutlet weak var nameField: UITextField!
+    @IBOutlet weak var emailField: UITextField!
+    @IBOutlet weak var passwordField: UITextField!
     
     override func viewDidLoad() {
         super.viewDidLoad()
 
         // Do any additional setup after loading the view.
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+        FIRAuth.auth()!.addStateDidChangeListener { (auth, user) in
+            if user != nil {
+                print("User \(user?.email) logged in")
+                self.emailField.text = user?.email!
+                self.performSegue(withIdentifier: "loginSegue", sender: nil)
+            }
+        }
     }
     
     @IBAction func onLogin(_ sender: Any) {
-        let name = nameField.text ?? ""
-        if name.trimmingCharacters(in: .whitespaces).characters.count == 0 {
-            self.showAlert(title: "Empty username", content: "Please enter an username")
+        let email = emailField.text ?? ""
+        let pass = passwordField.text ?? ""
+        
+        if email.trimmingCharacters(in: .whitespaces).characters.count == 0 {
+            self.showAlert(title: "Empty email", content: "Please enter an email")
             return
         }
         
+        FIRAuth.auth()!.signIn(withEmail: email, password: pass) { (user: FIRUser?, error: Error?) in
+            if error == nil {
+                if let _ = user {
+                    self.performSegue(withIdentifier: "loginSegue", sender: nil)
+                }
+            } else {
+                self.showAlert(title: "Login error", content: (error?.localizedDescription)!)
+            }
+        }
+        /*
         FIRAuth.auth()!.signInAnonymously(completion: { (user, error) in
             if error == nil {
                 self.performSegue(withIdentifier: "loginSegue", sender: nil)
@@ -38,12 +53,35 @@ class LoginViewController: UIViewController {
                 self.showAlert(title: "Login error", content: (error?.localizedDescription)!)
             }
         })
+ */
     }
 
+    @IBAction func onSignup(_ sender: UIButton) {
+        let email = emailField.text ?? ""
+        let pass = passwordField.text ?? ""
+        
+        if email.trimmingCharacters(in: .whitespaces).characters.count == 0 {
+            self.showAlert(title: "Empty email", content: "Please enter an email")
+            return
+        }
+        
+        FIRAuth.auth()!.createUser(withEmail: email, password: pass, completion: { (user: FIRUser?, error: Error?) in
+            if error == nil {
+                print("You have successfully signed up")
+                self.showAlert(title: "Signup successfully", content: "You will be logged in now")
+                self.performSegue(withIdentifier: "loginSegue", sender: nil)
+            } else {
+                self.showAlert(title: "Signup error", content: (error?.localizedDescription)!)
+            }
+        })
+        
+    }
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         let navVC = segue.destination as! UINavigationController
-        let channelsVC = navVC.viewControllers.first as! ChatViewController
-        channelsVC.senderName = nameField.text!
+        let chatVC = navVC.viewControllers.first as! ChatViewController
+        chatVC.currentUser = FIRAuth.auth()?.currentUser
+        chatVC.senderId = FIRAuth.auth()?.currentUser?.uid
     }
 
 }

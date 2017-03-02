@@ -9,30 +9,51 @@
 import UIKit
 import Firebase
 
-class ChatViewController: UIViewController {
+class ChatViewController: UIViewController, UITextFieldDelegate {
     
-    var senderName = ""
+    var currentUser: FIRUser?
+    var senderId: String!
     
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var textField: UITextField!
+    @IBOutlet weak var typingIndicator: UILabel!
     
     lazy var messageRef: FIRDatabaseReference = FIRDatabase.database().reference().child("messages0217")
     var messageRefHandle: FIRDatabaseHandle?
     
     var messages = [Message]()
     
+    // track user typing
+    private lazy var userIsTypingRef: FIRDatabaseReference = FIRDatabase.database().reference().child("typingIndicator").child(self.senderId)
+    private var localTyping = false
+    var isTyping: Bool {
+        get {
+            return localTyping
+        }
+        set {
+            localTyping = newValue
+            userIsTypingRef.setValue(newValue)
+        }
+    }
+    private lazy var usersTypingQuery: FIRDatabaseQuery =
+        FIRDatabase.database().reference().child("typingIndicator").queryOrderedByValue().queryEqual(toValue: true)
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
         // Do any additional setup after loading the view.
-        self.title = "hi \(senderName)"
+        self.title = currentUser?.email
         
         tableView.delegate = self
         tableView.dataSource = self
         tableView.estimatedRowHeight = 80
         tableView.rowHeight = UITableViewAutomaticDimension
         
+        textField.delegate = self
+        
         observeNewMessages()
+        observeTyping()
     }
     
     deinit {
@@ -44,16 +65,45 @@ class ChatViewController: UIViewController {
     // MARK: Firebase
     private func observeNewMessages() {
         messageRefHandle = messageRef.observe(.childAdded, with: { (snapshot) in
-            let messageData = snapshot.value as! Dictionary<String, Any>
             
-            if let name = messageData["sender"] as! String!, name.characters.count > 0 {
-                self.messages.append(Message(messageData: messageData))
-                self.tableView.reloadData()
+            let messageDict = snapshot.value as? [String: Any]
+            
+            if let msgData = messageDict {
+                if let email = msgData["email"] as! String!, email.characters.count > 0 {
+                    self.messages.append(Message(messageData: msgData))
+                    self.tableView.reloadData()
+                    let ip = NSIndexPath(row: self.messages.count-1, section: 0) as IndexPath
+                    self.tableView.scrollToRow(at: ip, at: UITableViewScrollPosition.top, animated: true)
+                }
             } else {
                 print("Error! Could not decode message data")
             }
-            
+
         })
+    }
+    
+    private func observeTyping() {
+        let typingIndicatorRef = FIRDatabase.database().reference().child("typingIndicator")
+        userIsTypingRef = typingIndicatorRef.child(self.senderId)
+        
+        usersTypingQuery.observe(.value) { (data: FIRDataSnapshot) in
+            // You're the only one typing, don't show the indicator
+            //if data.childrenCount == 1 && self.isTyping {
+            //    return
+            //}
+            
+            // Are there others typing?
+            self.typingIndicator.isHidden = data.childrenCount < 1
+        }
+        
+        userIsTypingRef.onDisconnectRemoveValue()
+    }
+    
+    // MARK: UITextFieldDelegate methods
+    func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+        let newText = NSString(string: textField.text!).replacingCharacters(in: range, with: string)
+        isTyping = newText != ""
+        return true
     }
     
     @IBAction func onLogout(_ sender: Any) {
@@ -69,7 +119,8 @@ class ChatViewController: UIViewController {
             }
             let newMessageRef = messageRef.childByAutoId()
             let messageData: [String: Any] = [
-                "sender": senderName,
+                "senderId": currentUser?.uid ?? "",
+                "email": currentUser?.email ?? "",
                 "content": msg,
                 "createdAt": [".sv": "timestamp"]
             ]
@@ -89,13 +140,6 @@ extension ChatViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "messageCell") as! MessageCell
         let msg = messages[indexPath.row] as Message
-        
-        if senderName == msg.sender {
-            msg.sender = "You"
-            
-            cell.senderLabel.textColor = UIColor.blue
-            cell.msgLabel.textColor = UIColor.blue
-        }
         cell.message = msg
         
         return cell
